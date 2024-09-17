@@ -15,7 +15,7 @@ def receive_messages(client_socket):
         except ConnectionResetError:
             break
 
-def send_message_to_server(host='127.0.0.1', port=65432):
+def send_message_to_server(host='172.26.80.1', port=65432):
     # Prompt for client name
     client_name = input("Enter your name: ")
 

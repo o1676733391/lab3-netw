@@ -103,7 +103,7 @@
  [],
  False,
  False,
- 1726538349,
+ 1726541078,
  [('run.exe',
    'd:\\Network '
    'programing\\lab3\\my-tcp-server\\.venv\\Lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit-intel\\run.exe',

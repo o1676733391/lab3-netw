@@ -32,7 +32,7 @@ def handle_server_input():
         message = input("Server: ")
         broadcast(message.encode('utf-8'))
 
-def start_server(host='127.0.0.1', port=65432):
+def start_server(host='0.0.0.0', port=65432):
     # Create a TCP/IP socket
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
         # Bind the socket to the address and port
