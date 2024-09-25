@@ -16,7 +16,6 @@ def receive_messages(client_socket):
             break
 
 def send_message_to_server(host='192.168.56.1', port=65432):
-    # Prompt for client name
     client_name = input("Enter your name: ")
 
     # Create a TCP/IP socket
