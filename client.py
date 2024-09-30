@@ -110,21 +110,25 @@ def create_email_window():
     # Function to fetch and display emails
     def fetch_emails():
         try:
-            
             username = username_entry.get()
             # Read email files from the client_files directory
             email_files = os.listdir(os.path.join(DOWNLOAD_DIRECTORY, username))
             email_listbox.delete(0, tk.END)  # Clear the listbox
             for filename in email_files:
                 if filename.endswith('.txt'):  # Assuming email files are .txt
-                    with open(os.path.join(DOWNLOAD_DIRECTORY, username, filename), 'r') as file:
+                    file_path = os.path.join(DOWNLOAD_DIRECTORY, username, filename)
+                    with open(file_path, 'r') as file:
+                        log(f"Reading file: {filename}")
                         content = file.readlines()
-                        subject = content[0].strip()  # Assuming the first line is the title
-                        email_listbox.insert(tk.END, f"{filename}: {subject}")
-            # log("Fetched emails.")
+                        if content:  # Check if the file is not empty
+                            subject = content[0].strip()  # Assuming the first line is the title
+                            email_listbox.insert(tk.END, f"{filename}: {subject}")
+                        else:
+                            log(f"File {filename} is empty.")
         except Exception as e:
             log(f"Error fetching emails: {e}")
-    # update the listbox with the current files in the DOWNLOAD_DIRECTORY
+
+    # Update the listbox with the current files in the DOWNLOAD_DIRECTORY
     fetch_emails()
 
 
@@ -169,8 +173,8 @@ def create_email_window():
             server_ip = server_ip_entry.get()
             server_port = int(server_port_entry.get())
 
-            email_message = f"Title: {title}\n\n{email_content}"  # Format of the email
-            client_socket.sendto(f"SEND_EMAIL:{username}:{recipient}:{email_message}".encode(), (server_ip, server_port))
+            # email_message = f"{title}:{email_content}"  # Format of the email
+            client_socket.sendto(f"SEND_EMAIL:{username}:{recipient}:{title}:{email_content}".encode(), (server_ip, server_port))
             log("Email sent.")
         except Exception as e:
             log(f"Error sending email: {e}")
