@@ -110,7 +110,7 @@ def create_email_window():
     # Function to fetch and display emails
     def fetch_emails():
         try:
-            download_file()
+            
             username = username_entry.get()
             # Read email files from the client_files directory
             email_files = os.listdir(os.path.join(DOWNLOAD_DIRECTORY, username))
@@ -223,26 +223,24 @@ def login_account():
         log(response.decode())
 
         if response.decode() == "Login successful":
-            download_file()
+            # catch all replies from the server
+            while True:
+                data, _ = client_socket.recvfrom(BUFFER_SIZE)
+                if data.decode() == "END":
+                    break
+                LIST_OF_MAIL.append(data.decode())
+                log(data.decode())
+            for filename in LIST_OF_MAIL:
+                request_file(filename)
+                response, _ = client_socket.recvfrom(BUFFER_SIZE)
+                if response.decode() =="END":
+                    time.sleep(0.1)
+                log(response.decode())
+
             create_email_window()  # Open the email window on successful login
     except Exception as e:
         log(f"Error logging in: {e}")
-def download_file():
-    # clear LIST_OF_MAIL
-    LIST_OF_MAIL.clear()
-    # catch all replies from the server
-    while True:
-        data, _ = client_socket.recvfrom(BUFFER_SIZE)
-        if data.decode() == "END":
-            break
-        LIST_OF_MAIL.append(data.decode())
-        log(data.decode())
-    for filename in LIST_OF_MAIL:
-        request_file(filename)
-        response, _ = client_socket.recvfrom(BUFFER_SIZE)
-        if response.decode() =="END":
-            time.sleep(0.1)
-        log(response.decode())
+
 # Tkinter UI Setup
 root = tk.Tk()
 root.title("UDP File Client")
