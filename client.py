@@ -163,7 +163,7 @@ def create_email_window():
             recipient = recipient_entry.get()
             title = title_entry.get()
             email_content = email_entry.get("1.0", tk.END).strip()
-
+            log (email_content)
             if not recipient or not title or not email_content:
                 messagebox.showwarning("Input Error", "Please enter recipient, title, and email content.")
                 return
@@ -264,7 +264,7 @@ server_ip_label.grid(row=0, column=0, padx=5, pady=5)
 
 server_ip_entry = ttk.Entry(server_frame)
 server_ip_entry.grid(row=0, column=1, padx=5, pady=5)
-server_ip_entry.insert(0, "192.168.1.237")  # Set default IP address
+server_ip_entry.insert(0, "10.60.236.235")  # Set default IP address
 
 server_port_label = ttk.Label(server_frame, text="Server Port:")
 server_port_label.grid(row=1, column=0, padx=5, pady=5)
