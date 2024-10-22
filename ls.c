@@ -3,164 +3,112 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#include <time.h>
 #include <pwd.h>
 #include <grp.h>
-#include <time.h>
 #include "args.h"
 
-void print_file_info(struct stat file_stat, char *filename, int args);
-void list_directory(const char *dir, int args);
-void print_file(const char *path, const char *name, int args);
-int compare_files(const struct dirent **a, const struct dirent **b, int args);
-void sort_files(struct dirent **file_list, int count, int args);
+void print_file_info(struct stat *file_stat, char *filename, int args);
+void list_directory(const char *directory, int args);
 
+// Function to handle listing
 int main(int argc, char *argv[]) {
-    char directory[256] = {0};
-    int args = get_args(argc, argv, directory);
+    char directory[256] = {0};  // To store the directory path
+    int args = get_args(argc, argv, directory);  // Parse arguments
 
-    // If no directory is specified, default to the current directory
-    if (directory[0] == '\0') {
-        strcpy(directory, ".");
-    }
-
-    // If -d flag is present, only list the directory itself
-    if (args & ARG_d) {
-        print_file(".", directory, args);
-    } else {
-        // List directory contents
-        list_directory(directory, args);
-    }
+    // List files in the directory
+    list_directory(directory, args);
 
     return 0;
 }
 
-void list_directory(const char *dir, int args) {
-    struct dirent **file_list;
-    int n;
+void list_directory(const char *directory, int args) {
+    DIR *dir;
+    struct dirent *entry;
+    struct stat file_stat;
+    char filepath[512];
 
-    // Read directory contents
-    n = scandir(dir, &file_list, NULL, alphasort);
-
-    if (n < 0) {
-        perror("scandir");
-        return;
+    if ((dir = opendir(directory)) == NULL) {
+        perror("opendir() error");
+        exit(1);
     }
 
-    // Sort the files if needed
-    sort_files(file_list, n, args);
+    while ((entry = readdir(dir)) != NULL) {
+        // Skip hidden files unless -a is specified
+        if (!(args & ARG_a) && entry->d_name[0] == '.')
+            continue;
 
-    // Print files based on the parsed flags
-    for (int i = 0; i < n; i++) {
-        // Skip hidden files unless the -a flag is set
-        if (!(args & ARG_a) && file_list[i]->d_name[0] == '.') {
+        snprintf(filepath, sizeof(filepath), "%s/%s", directory, entry->d_name);
+
+        if (stat(filepath, &file_stat) == -1) {
+            perror("stat() error");
             continue;
         }
 
-        print_file(dir, file_list[i]->d_name, args);
-        free(file_list[i]);
+        // Print file information based on arguments
+        print_file_info(&file_stat, entry->d_name, args);
     }
-    free(file_list);
+
+    closedir(dir);
 }
 
-void print_file(const char *path, const char *name, int args) {
-    char full_path[512];
-    snprintf(full_path, sizeof(full_path), "%s/%s", path, name);
-
-    struct stat file_stat;
-    if (stat(full_path, &file_stat) == -1) {
-        perror("stat");
-        return;
-    }
-
-    // If the -l flag is present, print detailed information
-    if (args & ARG_l) {
-        print_file_info(file_stat, (char*)name, args);
-    } else {
-        printf("%s\n", name);
-    }
-}
-
-void print_file_info(struct stat file_stat, char *filename, int args) {
-    // Print file permissions, number of links, owner, group, size, and name
-    printf((S_ISDIR(file_stat.st_mode)) ? "d" : "-");
-    printf((file_stat.st_mode & S_IRUSR) ? "r" : "-");
-    printf((file_stat.st_mode & S_IWUSR) ? "w" : "-");
-    printf((file_stat.st_mode & S_IXUSR) ? "x" : "-");
-    printf((file_stat.st_mode & S_IRGRP) ? "r" : "-");
-    printf((file_stat.st_mode & S_IWGRP) ? "w" : "-");
-    printf((file_stat.st_mode & S_IXGRP) ? "x" : "-");
-    printf((file_stat.st_mode & S_IROTH) ? "r" : "-");
-    printf((file_stat.st_mode & S_IWOTH) ? "w" : "-");
-    printf((file_stat.st_mode & S_IXOTH) ? "x" : "-");
-    
-    // Print inode if -i flag is present
-    if (args & ARG_i) {
-        printf(" %ld", file_stat.st_ino);
-    }
-
-    // Print number of links
-    printf(" %ld", file_stat.st_nlink);
-
-    // Print owner and group if -n flag is not present
-    if (!(args & ARG_n)) {
-        struct passwd *pwd = getpwuid(file_stat.st_uid);
-        struct group *grp = getgrgid(file_stat.st_gid);
-        printf(" %s %s", pwd->pw_name, grp->gr_name);
-    } else {
-        // Numeric IDs
-        printf(" %d %d", file_stat.st_uid, file_stat.st_gid);
-    }
-
-    // Print file size
-    if (args & ARG_h) {
-        char size_str[10];
-        human_readable_size(file_stat.st_size, size_str);
-        printf(" %s", size_str);
-    } else {
-        printf(" %ld", file_stat.st_size);
-    }
-
-    // Print last modification time
+// Function to print file info based on the flags
+void print_file_info(struct stat *file_stat, char *filename, int args) {
     char timebuf[80];
-    struct tm *tm_info = localtime(&(file_stat.st_mtime));
-    strftime(timebuf, 80, "%b %d %H:%M", tm_info);
-    printf(" %s", timebuf);
+    struct passwd *pw;
+    struct group *gr;
+    char perms[11] = "----------";
 
-    // Print file name
-    printf(" %s\n", filename);
-}
+    // -l: Long listing format
+    if (args & ARG_l) {
+        // File type and permissions
+        perms[0] = S_ISDIR(file_stat->st_mode) ? 'd' : '-';
+        perms[1] = (file_stat->st_mode & S_IRUSR) ? 'r' : '-';
+        perms[2] = (file_stat->st_mode & S_IWUSR) ? 'w' : '-';
+        perms[3] = (file_stat->st_mode & S_IXUSR) ? 'x' : '-';
+        perms[4] = (file_stat->st_mode & S_IRGRP) ? 'r' : '-';
+        perms[5] = (file_stat->st_mode & S_IWGRP) ? 'w' : '-';
+        perms[6] = (file_stat->st_mode & S_IXGRP) ? 'x' : '-';
+        perms[7] = (file_stat->st_mode & S_IROTH) ? 'r' : '-';
+        perms[8] = (file_stat->st_mode & S_IWOTH) ? 'w' : '-';
+        perms[9] = (file_stat->st_mode & S_IXOTH) ? 'x' : '-';
 
-void sort_files(struct dirent **file_list, int count, int args) {
-    // Sort by modification time if -t flag is set
-    if (args & ARG_t) {
-        qsort(file_list, count, sizeof(struct dirent *), (int (*)(const void *, const void *))compare_files);
-    }
-}
+        // -n: Numeric user and group IDs instead of names
+        if (args & ARG_n) {
+            printf("%s %ld %d %d %ld ", perms, file_stat->st_nlink, file_stat->st_uid, file_stat->st_gid, file_stat->st_size);
+        } else {
+            pw = getpwuid(file_stat->st_uid);
+            gr = getgrgid(file_stat->st_gid);
+            printf("%s %ld %s %s %ld ", perms, file_stat->st_nlink, pw->pw_name, gr->gr_name, file_stat->st_size);
+        }
 
-int compare_files(const struct dirent **a, const struct dirent **b, int args) {
-    struct stat stat_a, stat_b;
-    stat((*a)->d_name, &stat_a);
-    stat((*b)->d_name, &stat_b);
-
-    // Compare by modification time or reverse order if -r flag is set
-    if (args & ARG_r) {
-        return stat_a.st_mtime - stat_b.st_mtime;
-    } else {
-        return stat_b.st_mtime - stat_a.st_mtime;
-    }
-}
-
-void human_readable_size(long size, char *output) {
-    const char *sizes[] = {"B", "KB", "MB", "GB", "TB"};
-    int div = 0;
-    long rem = 0;
-
-    while (size >= 1024 && div < (sizeof(sizes) / sizeof(*sizes))) {
-        rem = (size % 1024);
-        div++;
-        size /= 1024;
+        // Format time based on -u flag (access time)
+        strftime(timebuf, sizeof(timebuf), "%b %d %H:%M", localtime(&(args & ARG_u ? file_stat->st_atime : file_stat->st_mtime)));
+        printf("%s ", timebuf);
     }
 
-    sprintf(output, "%ld.%ld %s", size, rem, sizes[div]);
+    // -i: Show inode number
+    if (args & ARG_i) {
+        printf("%ld ", file_stat->st_ino);
+    }
+
+    // -s: Show file sizes
+    if (args & ARG_s) {
+        // -h: Human-readable sizes
+        if (args & ARG_h) {
+            double size = (double)file_stat->st_size;
+            const char *suffix[] = {"B", "KB", "MB", "GB"};
+            int i = 0;
+            while (size > 1024 && i < 3) {
+                size /= 1024;
+                i++;
+            }
+            printf("%4.1f%s ", size, suffix[i]);
+        } else {
+            printf("%ld ", file_stat->st_size);
+        }
+    }
+
+    // Print the filename
+    printf("%s\n", filename);
 }
