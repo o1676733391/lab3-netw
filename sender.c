@@ -4,9 +4,11 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <string.h>
 
 #define FIFO_NAME "myfifo"
 #define NUM_COUNT 7
+#define INFO_STRING "Pham Van Ngoc Vinh 22AD059"
 
 int main() {
     int fd;
@@ -31,9 +33,12 @@ int main() {
     // Write the numbers to the FIFO
     write(fd, numbers, sizeof(numbers));
 
+    // Write the string to the FIFO
+    write(fd, INFO_STRING, strlen(INFO_STRING) + 1);
+
     // Close the FIFO
     close(fd);
 
-    printf("Sender: Sent numbers to FIFO\n");
+    printf("Sender: Sent numbers and string to FIFO\n");
     return 0;
 }
